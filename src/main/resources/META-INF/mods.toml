@@ -1,0 +1,24 @@
+modLoader="javafml"
+loaderVersion="[41,)"
+license="All rights reserved"
+[[mods]]
+modId="worlddataloader"
+version="${file.jarVersion}"
+displayName="World Data Loader"
+credits="Thanks Taknax for the mod idea"
+authors="Daripher"
+description='''Allows loading pre-generated data files into worlds'''
+
+[[dependencies.worlddataloader]]
+    modId="forge"
+    mandatory=true
+    versionRange="[41,)"
+    ordering="NONE"
+    side="BOTH"
+	
+[[dependencies.worlddataloader]]
+    modId="minecraft"
+    mandatory=true
+    versionRange="[1.19,1.20)"
+    ordering="NONE"
+    side="BOTH"
