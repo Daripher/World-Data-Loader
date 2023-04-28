@@ -3,7 +3,7 @@ loaderVersion="[41,)"
 license="All rights reserved"
 [[mods]]
 modId="worlddataloader"
-version="${file.jarVersion}"
+version="1.0"
 displayName="World Data Loader"
 credits="Thanks Taknax for the mod idea"
 authors="Daripher"
