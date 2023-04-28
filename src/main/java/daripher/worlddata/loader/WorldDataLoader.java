@@ -38,47 +38,56 @@ public class WorldDataLoader extends DataResourceReloadListener {
 	@Override
 	protected void apply(Map<ResourceLocation, Resource> resources, ResourceManager resourceManager, ProfilerFiller profilerFiller) {
 		DATA_FILES.clear();
-
-		resources.forEach((location, resource) -> {
-			if (location.getPath().contains("/")) {
-				var dimensionName = location.getPath().split("/")[0];
-				var dimensionId = new ResourceLocation(location.getNamespace(), dimensionName);
-				addResource(location, resource, dimensionId);
-				LOGGER.info("Reading world data file {}", location);
-			} else {
-				LOGGER.error("Couldn't read world data file {}, no dimension specified", location);
-			}
-		});
+		resources.forEach(this::readWorldDataFile);
 	}
 
-	private void addResource(ResourceLocation location, Resource resource, ResourceLocation dimensionId) {
+	private void readWorldDataFile(ResourceLocation location, Resource resource) {
+		if (!location.getPath().contains("/")) {
+			LOGGER.error("Couldn't read world data file {}, no dimension specified", location);
+			return;
+		}
+		LOGGER.info("Reading world data file {}", location);
+		var dimensionName = location.getPath().split("/")[0];
+		var dimensionId = new ResourceLocation(location.getNamespace(), dimensionName);
+		addResource(location, resource, dimensionId);
+	}
+
+	private void addResource(ResourceLocation resourceLocation, Resource resource, ResourceLocation dimensionId) {
+		initResourceListIfNeeded(dimensionId);
+		var resourceName = resourceLocation.getPath().split("/")[1];
+		DATA_FILES.get(dimensionId).add(Pair.of(resourceName, resource));
+	}
+
+	private void initResourceListIfNeeded(ResourceLocation dimensionId) {
 		if (DATA_FILES.get(dimensionId) == null) {
 			DATA_FILES.put(dimensionId, new ArrayList<>());
 		}
-
-		var resourceName = location.getPath().split("/")[1];
-		DATA_FILES.get(dimensionId).add(Pair.of(resourceName, resource));
 	}
 
 	@SubscribeEvent
 	public static void copyWorldDataFiles(LevelEvent.Load event) {
-		if (event.getLevel() instanceof ServerLevel serverLevel) {
-			var dimension = serverLevel.dimension();
-			var dataFolder = getDataFolder(serverLevel.getDataStorage());
-			var resources = DATA_FILES.get(dimension.location());
-			LOGGER.debug("Searching for data files for dimension {}", dimension.location());
+		if (event.getLevel().isClientSide()) {
+			return;
+		}
+		var serverLevel = (ServerLevel) event.getLevel();
+		var dimension = serverLevel.dimension();
+		var dataFolder = getDataFolder(serverLevel.getDataStorage());
+		var resources = DATA_FILES.get(dimension.location());
+		LOGGER.debug("Searching for data files for dimension {}", dimension.location());
+		if (resources == null) {
+			LOGGER.debug("Nothing found");
+			return;
+		}
+		resources.forEach(pair -> copyWorldDataFile(dataFolder, pair.getFirst(), pair.getSecond()));
+	}
 
-			if (resources == null) {
-				LOGGER.debug("Nothing found");
-				return;
-			}
-
-			resources.forEach(pair -> {
-				var fileName = pair.getFirst();
-				var dataFile = new File(dataFolder, fileName + ".dat");
-				LOGGER.debug("Writing world data file {}", fileName);
-				writeResourceIntoFile(pair.getSecond(), dataFile);
-			});
+	private static void copyWorldDataFile(File dataFolder, String fileName, Resource resource) {
+		LOGGER.debug("Writing world data file {}", fileName);
+		var dataFile = new File(dataFolder, fileName + ".dat");
+		try {
+			writeResourceIntoFile(resource, dataFile);
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
 	}
 
@@ -86,22 +95,16 @@ public class WorldDataLoader extends DataResourceReloadListener {
 		return (File) ObfuscationReflectionHelper.getPrivateValue(DimensionDataStorage.class, dataStorage, "f_78146_");
 	}
 
-	private static void writeResourceIntoFile(Resource resource, File file) {
-		try {
-			file.createNewFile();
-			var inputStream = resource.open();
-
-			try (FileOutputStream outputStream = new FileOutputStream(file, false)) {
-				int read;
-				var bytes = new byte[8192];
-
-				while ((read = inputStream.read(bytes)) != -1) {
-					outputStream.write(bytes, 0, read);
-				}
-			}
-		} catch (IOException e) {
-			e.printStackTrace();
+	private static void writeResourceIntoFile(Resource resource, File file) throws IOException {
+		file.createNewFile();
+		var resourceInputStream = resource.open();
+		var fileOutputStream = new FileOutputStream(file, false);
+		var byteBuffer = new byte[8192];
+		var readByte = 0;
+		while ((readByte = resourceInputStream.read(byteBuffer)) != -1) {
+			fileOutputStream.write(byteBuffer, 0, readByte);
 		}
+		fileOutputStream.close();
 	}
 
 	@SubscribeEvent

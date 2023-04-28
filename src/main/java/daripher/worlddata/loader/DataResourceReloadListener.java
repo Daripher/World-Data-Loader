@@ -1,10 +1,10 @@
 package daripher.worlddata.loader;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import org.slf4j.Logger;
 
-import com.google.common.collect.Maps;
 import com.mojang.logging.LogUtils;
 
 import net.minecraft.resources.ResourceLocation;
@@ -25,24 +25,22 @@ public abstract class DataResourceReloadListener extends SimplePreparableReloadL
 
 	@Override
 	protected Map<ResourceLocation, Resource> prepare(ResourceManager resourceManager, ProfilerFiller profilerFiller) {
-		Map<ResourceLocation, Resource> map = Maps.newHashMap();
+		var preparedResources = new HashMap<ResourceLocation, Resource>();
+		var resources = resourceManager.listResources(directory, this::isDataFile).entrySet();
+		resources.forEach(entry -> prepareResource(preparedResources, entry.getKey(), entry.getValue()));
+		return preparedResources;
+	}
 
-		for (Map.Entry<ResourceLocation, Resource> entry : resourceManager.listResources(directory, this::isDataFile).entrySet()) {
-			var resourceLocation = entry.getKey();
-			var resourceId = getResourceId(resourceLocation);
-
-			try {
-				var resource = map.put(resourceId, entry.getValue());
-
-				if (resource != null) {
-					throw new IllegalStateException("Duplicate data file ignored with ID " + resourceId);
-				}
-			} catch (IllegalArgumentException exception) {
-				LOGGER.error("Couldn't parse data file {} from {}", resourceId, resourceLocation, exception);
+	private void prepareResource(HashMap<ResourceLocation, Resource> preparedResources, ResourceLocation resourceLocation, Resource resource) {
+		var resourceId = getResourceId(resourceLocation);
+		try {
+			var duplicateResource = preparedResources.put(resourceId, resource);
+			if (duplicateResource != null) {
+				throw new IllegalStateException("Duplicate data file ignored with ID " + resourceId);
 			}
+		} catch (IllegalArgumentException exception) {
+			LOGGER.error("Couldn't parse data file {} from {}", resourceId, resourceLocation, exception);
 		}
-
-		return map;
 	}
 
 	private ResourceLocation getResourceId(ResourceLocation resourceLocation) {
