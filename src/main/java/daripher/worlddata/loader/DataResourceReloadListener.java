@@ -1,5 +1,6 @@
 package daripher.worlddata.loader;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -26,19 +27,20 @@ public abstract class DataResourceReloadListener extends SimplePreparableReloadL
 	@Override
 	protected Map<ResourceLocation, Resource> prepare(ResourceManager resourceManager, ProfilerFiller profilerFiller) {
 		var preparedResources = new HashMap<ResourceLocation, Resource>();
-		var resources = resourceManager.listResources(directory, this::isDataFile).entrySet();
-		resources.forEach(entry -> prepareResource(preparedResources, entry.getKey(), entry.getValue()));
+		var resources = resourceManager.listResources(directory, this::isDataFile);
+		resources.forEach(resourceLocation -> prepareResource(resourceManager, preparedResources, resourceLocation));
 		return preparedResources;
 	}
 
-	private void prepareResource(HashMap<ResourceLocation, Resource> preparedResources, ResourceLocation resourceLocation, Resource resource) {
+	private void prepareResource(ResourceManager resourceManager, HashMap<ResourceLocation, Resource> preparedResources, ResourceLocation resourceLocation) {
 		var resourceId = getResourceId(resourceLocation);
 		try {
+			var resource = resourceManager.getResource(resourceLocation);
 			var duplicateResource = preparedResources.put(resourceId, resource);
 			if (duplicateResource != null) {
 				throw new IllegalStateException("Duplicate data file ignored with ID " + resourceId);
 			}
-		} catch (IllegalArgumentException exception) {
+		} catch (IllegalArgumentException | IOException exception) {
 			LOGGER.error("Couldn't parse data file {} from {}", resourceId, resourceLocation, exception);
 		}
 	}
@@ -49,7 +51,7 @@ public abstract class DataResourceReloadListener extends SimplePreparableReloadL
 		return new ResourceLocation(resourceLocation.getNamespace(), path.substring(directoryLength, path.length() - PATH_SUFFIX_LENGTH));
 	}
 
-	private boolean isDataFile(ResourceLocation resourceLocation) {
-		return resourceLocation.getPath().endsWith(PATH_SUFFIX);
+	private boolean isDataFile(String fileName) {
+		return fileName.endsWith(PATH_SUFFIX);
 	}
 }

@@ -21,7 +21,7 @@ import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.level.storage.DimensionDataStorage;
 import net.minecraftforge.event.AddReloadListenerEvent;
-import net.minecraftforge.event.level.LevelEvent;
+import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
 import net.minecraftforge.fml.util.ObfuscationReflectionHelper;
@@ -65,11 +65,11 @@ public class WorldDataLoader extends DataResourceReloadListener {
 	}
 
 	@SubscribeEvent
-	public static void copyWorldDataFiles(LevelEvent.Load event) {
-		if (event.getLevel().isClientSide()) {
+	public static void copyWorldDataFiles(WorldEvent.Load event) {
+		if (event.getWorld().isClientSide()) {
 			return;
 		}
-		var serverLevel = (ServerLevel) event.getLevel();
+		var serverLevel = (ServerLevel) event.getWorld();
 		var dimension = serverLevel.dimension();
 		var dataFolder = getDataFolder(serverLevel.getDataStorage());
 		var resources = DATA_FILES.get(dimension.location());
@@ -97,7 +97,7 @@ public class WorldDataLoader extends DataResourceReloadListener {
 
 	private static void writeResourceIntoFile(Resource resource, File file) throws IOException {
 		file.createNewFile();
-		var resourceInputStream = resource.open();
+		var resourceInputStream = resource.getInputStream();
 		var fileOutputStream = new FileOutputStream(file, false);
 		var byteBuffer = new byte[8192];
 		var readByte = 0;
