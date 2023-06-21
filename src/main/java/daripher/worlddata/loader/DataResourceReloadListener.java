@@ -25,27 +25,25 @@ public abstract class DataResourceReloadListener extends SimplePreparableReloadL
 
 	@Override
 	protected Map<ResourceLocation, Resource> prepare(ResourceManager resourceManager, ProfilerFiller profilerFiller) {
-		var preparedResources = new HashMap<ResourceLocation, Resource>();
-		var resources = resourceManager.listResources(directory, this::isDataFile).entrySet();
-		resources.forEach(entry -> prepareResource(preparedResources, entry.getKey(), entry.getValue()));
-		return preparedResources;
+		var resources = new HashMap<ResourceLocation, Resource>();
+		resourceManager.listResources(directory, this::isDataFile)
+			.forEach((resourceLocation, resource) -> prepareResource(resources, resourceLocation, resource));
+		return resources;
 	}
 
 	private void prepareResource(HashMap<ResourceLocation, Resource> preparedResources, ResourceLocation resourceLocation, Resource resource) {
-		var resourceId = getResourceId(resourceLocation);
+		ResourceLocation resourceId = getResourceId(resourceLocation);
 		try {
-			var duplicateResource = preparedResources.put(resourceId, resource);
-			if (duplicateResource != null) {
-				throw new IllegalStateException("Duplicate data file ignored with ID " + resourceId);
-			}
+			Resource duplicate = preparedResources.put(resourceId, resource);
+			if (duplicate != null) throw new IllegalStateException("Duplicate data file ignored with ID " + resourceId);
 		} catch (IllegalArgumentException exception) {
 			LOGGER.error("Couldn't parse data file {} from {}", resourceId, resourceLocation, exception);
 		}
 	}
 
 	private ResourceLocation getResourceId(ResourceLocation resourceLocation) {
-		var path = resourceLocation.getPath();
-		var directoryLength = directory.length() + 1;
+		String path = resourceLocation.getPath();
+		int directoryLength = directory.length() + 1;
 		return new ResourceLocation(resourceLocation.getNamespace(), path.substring(directoryLength, path.length() - PATH_SUFFIX_LENGTH));
 	}
 
